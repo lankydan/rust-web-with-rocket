@@ -1,4 +1,7 @@
-use people::People;
+use diesel;
+use diesel::prelude::*;
+use schema::people;
+use people::Person;
 
 pub fn all(connection: &PgConnection) -> QueryResult<Vec<Person>> {
     people::table.load::<Person>(&*connection)
@@ -7,21 +10,6 @@ pub fn all(connection: &PgConnection) -> QueryResult<Vec<Person>> {
 pub fn get(id: i32, connection: &PgConnection) -> QueryResult<Person> {
     people::table.find(id).get_result::<Person>(connection)
 }
-
-//    pub fn get(id: i32, connection: &PgConnection) -> Person {
-//        people::table.find(id).get_result::<Person>(connection).expect("Error loading record")
-//    }
-
-//    pub fn insert(person: Person, connection: &PgConnection) -> Person {
-//        diesel::insert_into(people::table).values(&person).get_result(connection).expect("Error saving record")
-//    }
-
-// pub fn insert(person: Person, connection: &DbConn) -> Person {
-//   match diesel::insert_into(people::table).values(person).get_result(connection) {
-//     Ok(person) => person,
-//     Err(error) => format!("Error loading record")
-//   }
-// }
 
 pub fn insert(person: Person, connection: &PgConnection) -> QueryResult<Person> {
     diesel::insert_into(people::table)
@@ -43,20 +31,14 @@ pub fn delete(id: i32, connection: &PgConnection) -> QueryResult<usize> {
 #[derive(Insertable)]
 #[table_name = "people"]
 struct InsertablePerson {
-    pub first_name: String,
-    pub last_name: String,
-    pub age: i32,
-    pub profession: String,
-    pub salary: i32,
+    first_name: String,
+    last_name: String,
+    age: i32,
+    profession: String,
+    salary: i32,
 }
 
 impl InsertablePerson {
-    //    pub fn insert(person: Person, connection: &PgConnection) -> Person {
-    //        diesel::insert_into(people::table)
-    //            .values(&InsertablePerson::from_person(person))
-    //            .get_result(connection)
-    //            .expect("Error saving record")
-    //    }
 
     fn from_person(person: Person) -> InsertablePerson {
         InsertablePerson {

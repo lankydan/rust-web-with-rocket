@@ -7,6 +7,7 @@ use super::schema::people;
 pub mod connection;
 pub mod handler;
 pub mod router;
+pub mod repository;
 
 #[derive(Queryable, AsChangeset, Serialize, Deserialize)]
 #[table_name = "people"]
@@ -27,21 +28,6 @@ impl Person {
     pub fn get(id: i32, connection: &PgConnection) -> QueryResult<Person> {
         people::table.find(id).get_result::<Person>(connection)
     }
-
-    //    pub fn get(id: i32, connection: &PgConnection) -> Person {
-    //        people::table.find(id).get_result::<Person>(connection).expect("Error loading record")
-    //    }
-
-    //    pub fn insert(person: Person, connection: &PgConnection) -> Person {
-    //        diesel::insert_into(people::table).values(&person).get_result(connection).expect("Error saving record")
-    //    }
-
-    // pub fn insert(person: Person, connection: &DbConn) -> Person {
-    //   match diesel::insert_into(people::table).values(person).get_result(connection) {
-    //     Ok(person) => person,
-    //     Err(error) => format!("Error loading record")
-    //   }
-    // }
 
     pub fn update(id: i32, person: Person, connection: &PgConnection) -> QueryResult<Person> {
         diesel::update(people::table.find(id))
@@ -66,12 +52,6 @@ pub struct InsertablePerson {
 }
 
 impl InsertablePerson {
-    //    pub fn insert(person: Person, connection: &PgConnection) -> Person {
-    //        diesel::insert_into(people::table)
-    //            .values(&InsertablePerson::from_person(person))
-    //            .get_result(connection)
-    //            .expect("Error saving record")
-    //    }
 
     pub fn insert(person: Person, connection: &PgConnection) -> QueryResult<Person> {
         diesel::insert_into(people::table)

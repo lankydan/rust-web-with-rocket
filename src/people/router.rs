@@ -1,6 +1,5 @@
-extern crate rocket;
-
 use people;
+use rocket;
 
 pub fn create_routes() {
     rocket::ignite()
