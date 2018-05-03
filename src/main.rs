@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate diesel;
 extern crate dotenv;
+extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate rocket;
 extern crate rocket_contrib;
@@ -16,6 +17,7 @@ use std::env;
 
 mod people;
 mod schema;
+mod connection;
 
 fn main() {
     people::router::create_routes();

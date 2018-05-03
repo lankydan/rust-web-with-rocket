@@ -1,7 +1,3 @@
-extern crate diesel;
-extern crate r2d2;
-extern crate r2d2_diesel;
-
 use diesel::pg::PgConnection;
 use dotenv::dotenv;
 use r2d2_diesel::ConnectionManager;
@@ -10,6 +6,7 @@ use rocket::http::Status;
 use rocket::request::{self, FromRequest};
 use std::env;
 use std::ops::Deref;
+use r2d2;
 
 type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 

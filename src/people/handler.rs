@@ -1,10 +1,9 @@
+use connection::DbConn;
 use diesel::result::Error;
 use people;
 use people::Person;
-use people::connection::DbConn;
 use rocket::http::Status;
-use rocket::response::Failure;
-use rocket::response::status;
+use rocket::response::{Failure, status};
 use rocket_contrib::Json;
 
 #[get("/")]
@@ -29,7 +28,7 @@ fn error_status(error: Error) -> Failure {
 }
 
 #[post("/", format = "application/json", data = "<person>")]
-fn post(person: Json<Person>, connection: DbConn, ) -> Result<status::Created<Json<Person>>, Failure> {
+fn post(person: Json<Person>, connection: DbConn) -> Result<status::Created<Json<Person>>, Failure> {
     people::repository::insert(person.into_inner(), &connection)
         .map(|person| person_created(person))
         .map_err(|_| Failure(Status::InternalServerError))
