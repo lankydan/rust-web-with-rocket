@@ -1,4 +1,4 @@
-use super::schema::people;
+ use super::schema::people;
 
 pub mod handler;
 pub mod router;

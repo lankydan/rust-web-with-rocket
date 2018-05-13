@@ -10,23 +10,13 @@ extern crate rocket_contrib;
 #[macro_use]
 extern crate serde_derive;
 
-use diesel::Connection;
-use diesel::pg::PgConnection;
 use dotenv::dotenv;
-use std::env;
 
 mod people;
 mod schema;
 mod connection;
 
 fn main() {
-    people::router::create_routes();
-}
-
-pub fn connect() -> PgConnection {
     dotenv().ok();
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url)
-        .expect(&format!("Error connecting to {}", database_url))
+    people::router::create_routes();
 }
