@@ -1,14 +1,14 @@
-Creating a Rusty Rocket fueled with Diesel
+Creating a Rusty Rocket fuelled with Diesel
 
 Sorry if that title seemed stupid. The super serious title would be "Creating a REST API in Rust using Rocket and Diesel", but thats boring. Anyway... 
 
-Here I go with my first post that fully focuses on Rust. After spending a few months doing a bit here and there I decided to just dive right in as I was going through the Rust book at too slow a pace to keep myself interested enough. So in this post I decided to write about setting up a simple REST API which is something that I have done in Java plenty of times but with Rust it is a different story.
+Here I go with my first post that fully focuses on Rust. After spending a few months doing a bit here and there I decided to just dive right in as I was going through the Rust book at too slow a pace to keep myself interested. So, in this post I decided to write about setting up a simple REST API which is something that I have done in Java plenty of times but with Rust it is a different story.
 
 Anyway, enough with this personal backstory and onto the actual tutorial.
 
-In this post we will be looking creating a REST API in Rust. To do this we will use [Rocket](URL to rocket site) to setup the API and [Diesel](URL to diesel site) to deal with the database. 
+In this post we will be looking creating a REST API in Rust. To do this we will use [Rocket](https://rocket.rs/) to setup the API and [Diesel](http://diesel.rs/) to deal with the database. 
 
-At the time of writing this post the only databases that Diesel accomodates for are Postgres, MySql and sqlite.
+At the time of writing this post the only databases that Diesel accommodates are Postgres, MySql and Sqlite.
 
 ## Dependencies
 
@@ -30,25 +30,33 @@ version = "*"
 default-features = false
 features = ["json"]
 ```
-As you can see there's a reasonable amount of crates being used here. Obviously we need the `rocket` and `diesel` crates whereas the rest are not yet clear. `rocket_codegen` is pulled in for some macros. `dotenv` to allow us to retrieve environment variables from an external file. `r2d2` and `r2d2-diesel` for connection pooling for connecting to the database, specifically via diesel. Finally, `serde`, `serde_derive`, `serde_json` for serialisation and deserialisation of data that is sent and received by the REST API. One extra note about the `diesel` dependency, `postgres` has been specified explicitly so Postgres modules are included in the Diesel crate, if we wanted to use a different database or even multiple types within the project we just need to specify them or remove the `features` list all together. 
+As you can see there's a reasonable amount of crates being used here. Obviously we need the `rocket` and `diesel` crates whereas the rest are not yet clear. `rocket_codegen` is pulled in for some macros. `dotenv` to allow us to retrieve environment variables from an external file. `r2d2` and `r2d2-diesel` for connection pooling to connect to the database, specifically via diesel. Finally, `serde`, `serde_derive`, `serde_json` for serialisation and deserialisation of data that is sent and received by the REST API. One extra note about the `diesel` dependency, `postgres` has been specified explicitly to include only Postgres modules in the Diesel crate, if we wanted to use a different database or even multiple types within the project we just need to specify them or remove the `features` list all together.
+
+There is one last piece of information we need before we can continue. To use Rocket, we must be using a nightly build of Rust since it relies on features not yet included in the stable builds.
 
 ## Doing database stuff with Diesel
 
-I think the best place to start is with setting up Diesel. Once that's done we will have our schema defined (only one table for this post) which we can then use and start to build up our application.
+I think the best place to start with is setting up Diesel. Once that's done we will have our schema defined (only one table for this post) which we can then use to build up our application.
 
-For the purpose of this post I will assume that you have already setup the Diesel CLI. A quick example on how to use it can be found in Diesel's [getting started guide](http://diesel.rs/guides/getting-started/) along with other information in how to use it. I personally use Postgres solely due to not being able to get everything needed to run MySQL which seemed to stem from me using Windows. Postgres on the other hand was nice and easy to get going.
+For the purpose of this post I will assume that you have already setup the Diesel CLI. A quick example on how to use it can be found in Diesel's [getting started guide](http://diesel.rs/guides/getting-started/) along with other information in how to use it. I personally used Postgres solely due to not being able to get everything I needed to run MySQL, which seemed to stem from me using Windows... Postgres on the other hand was nice and easy to get going.
 
-### Creating the people table
+### Creating a table
 
-After setting the `DATABASE_URL` to connect Postgres and running `diesel setup` a database will be setup for the project and an empty migrations folder.
+First set the `DATABASE_URL` to connect to Postgres with the below command or by adding it to the `.env` file manually:
+```
+echo DATABASE_URL=postgres://postgres:password@localhost/rust-web-with-rocket > .env
+```
+Hopefully your username and password differs from mine!
 
-For this post, we will be modelling people which can be inserted, retrieved, updated and deleted from the database. To do this we are going to first need a table to store them in. So lets create our first migration.
+Then run `diesel setup` to create a database for the project and an empty migrations folder for later use.
+
+For this post, we will be modelling people who can be: inserted, retrieved, updated and deleted from the database. To do this we are going to first need a table to store them in. So lets create our first migration.
 ```
 diesel migration generate create_people
 ```
-This crates two new files within a single folder which is then placed in the migrations directory. `up.sql` is upgrading and is where we want to put the SQL to create the table. `down.sql` is for downgrading so we can undo the upgrade in necessary, therefore for this example it will drop the people table.
+This creates two new files within a single folder which are then placed in the migrations directory. `up.sql` is for upgrading and is where we want to put the SQL to create the table. `down.sql` is for downgrading so we can undo the upgrade if necessary, therefore for this example it will drop the people table.
 
-Without further adu, to create the people table we run:
+To create the people table we run:
 ```sql
 CREATE TABLE people(
   id SERIAL PRIMARY KEY,
@@ -60,7 +68,7 @@ CREATE TABLE people(
 )
 ```
 And to undo this creation:
-```
+```sql
 DROP TABLE people
 ```
 To apply this migration we need to run:
@@ -73,7 +81,7 @@ diesel migration redo
 ```
 ### Mapping to structs
 
-At this point we have a people table which we can start inserting data into. Since Diesel is an ORM we are obviously going to start mapping the table to something that represents the table in Rust. To do just that we will use a struct.
+At this point we have a people table which we can start inserting data into. Since Diesel is an ORM we are obviously going to start mapping the table to something that represents the it in Rust. To do just that we will use a struct.
 ```rust
 use super::schema::people;
 
@@ -88,9 +96,7 @@ pub struct Person {
     pub salary: i32,
 }
 ```
-# what is AsChangeset for?
-
-Below is the struct that represents each record in the people table, otherwise named, a person. Since I only want this struct to represent a record in the table I decided to provide it with no logic and therefore it does not have a `impl` section. There are two Diesel specific attributes here; `#[derive(Queryable)]` and `#[table_name]`. `#[derive(Queryable)]` will generate the code to retrieve a person from the database and `#[table_name = "people"]` is required since the plural of person in not people. If this struct was called post and the table posts, like in the Diesel getting started example, the attribute can be removed since plural of post is posts which matches the table name.
+Below is the struct that represents each record in the people table; otherwise named a person. Since I only want this struct to represent a record in the table I decided to provide it with no logic and therefore it does not have a `impl` section. There are three Diesel specific attributes here: `#[derive(Queryable)]`, `#[derive(AsChangeSet)]` and `#[table_name]`. `#[derive(Queryable)]` will generate the code to retrieve a person from the database and `#[derive(AsChangeSet)]` to allow us to use `update.set` later on. Finally, `#[table_name = "people"]` is required since the plural of person in not people. If this struct was called post and the table posts, like in the Diesel [getting started example](http://diesel.rs/guides/getting-started/), the attribute can be removed since the plural of post is posts which matches the table name.
 
 The other attributes are aptly named; `#[derive(Serialize)]` and `#[derive(Deserialize)]`. These are for accepting/returning JSON into/from the REST API. They both come from the `serde` crate. We will look at this more later on in the post.
 
@@ -98,7 +104,6 @@ Before we move any further, we should look at creating our schema. Not a databas
 ```
 diesel print-schema > src/schema.rs
 ```
-# does this schema actually match my struct if started from scratch?
 The following file is generated:
 ```
 table! {
@@ -114,7 +119,7 @@ table! {
 ```
 For now we can just ignore this file and carry on going.
 
-Using the `Person` struct we run `SELECT` and `UPDATE` queries. `DELETE` doesn't require a struct to map to since we just require the records ID. Then what about `INSERT`? For convenience, Diesel suggests doing it this way, using another struct for the sole purpose of inserting is used.
+Using the `Person` struct defined above, we can execute `SELECT` and `UPDATE` queries. `DELETE` doesn't require a struct to map to since we just require the record's ID. Then what about `INSERT`? For convenience, Diesel suggests doing it this way, we will use another struct with the sole purpose of being used for inserts.
 ```rust
 #[derive(Insertable)]
 #[table_name = "people"]
@@ -145,7 +150,7 @@ I have also included an utility function `from_person` which takes a `Person` st
 
 ### Executing queries
 
-At this point we have created our table and the structs that map to it. Now we need to put them to use. Below are all the methods to to implement the basic REST API:
+At this point we have created our table and the structs that map to it. Now we need to put them to use. Below are all the methods needed to implement the basic REST API:
 ```rust
 use diesel;
 use diesel::prelude::*;
@@ -177,7 +182,7 @@ pub fn delete(id: i32, connection: &PgConnection) -> QueryResult<usize> {
         .execute(connection)
 }
 ```
-The `diesel` module is used to access the `insert_into`, `update` and `delete` functions. `diesel::prelude::*` provides access to a range of modules and structs that are generally useful when using Diesel, for this example; `PgConnection` and `QueryResult` are included in this list. `schema::people` is included so we can access the people table from within Rust and execute methods on it.
+The `diesel` module is used to access the `insert_into`, `update` and `delete` functions. `diesel::prelude::*` provides access to a range of modules and structs that are generally useful when using Diesel, for this example; `PgConnection` and `QueryResult` are included in this list. `schema::people` is included so we can access the people table from within Rust and execute methods on it. Note that `schema::people` is referring back to the people table defined in the `schema.rs` file we generated earlier.
 
 Let's look at one of the functions more closely:
 ```rust
@@ -185,15 +190,15 @@ pub fn get(id: i32, connection: &PgConnection) -> QueryResult<Person> {
     people::table.find(id).get_result::<Person>(connection)
 }
 ```
-As mentioned above we can access the people table via `people::table` thanks to including `schema::people`. This example is nice and easy, `find` is specified as the query to select a single record with the provided ID and `get_result` executes the query once a connection is provided to it. 
+As mentioned above, we can access the people table via `people::table` thanks to including `schema::people`. This example is nice and easy, `find` is specified as the query that selects a single record with the provided ID and `get_result` executes the query with the connection provided to it. 
 
-In my examples `QueryResult` is returned from all functions. Diesel returns `QueryResult<T>` from most methods and is shorthand for `Result<T, Error>` due to the following line:
+In my examples `QueryResult` is returned from all functions. Diesel returns `QueryResult&lt;T&gt;` from most methods and is shorthand for `Result<T, Error>` due to the following line:
 ```rust
 pub type QueryResult<T> = Result<T, Error>;
 ```
 Returning `QueryResult` allows us to determine what happens if the query fails in whatever way is suitable for where the function is used. If we wanted to return a `Person` directly out of the function we could call `expect` to log the error there and then.
 
-Also, since I have used Postgres for this post, `PgConnection` is used. If we were using one of the other databases Diesel works with, MySql for example, `MysqlConnection` would be used instead.
+Also, since I have used Postgres for this post, `PgConnection` is used. If we were using one of the other databases Diesel support; MySql for example, `MysqlConnection` would be used instead.
 
 Let's look at another one:
 ```rust
@@ -203,7 +208,7 @@ pub fn insert(person: Person, connection: &PgConnection) -> QueryResult<Person> 
         .get_result(connection)
 }
 ```
-This works slightly differently to the earlier `get` function. Rather than accessing a function on the `people::table` it is passed into another Diesel function, `insert_into`. As I mentioned earlier in the post, `InsertablePerson` was defined specifically new records, therefore the values from `person` are extracted thanks to the `from_person` helper function. Remember that no ID is included on this struct. Like before, `get_result` is called again to execute the insert statement.
+This works slightly differently to the earlier `get` function. Rather than accessing a function on the `people::table` it is passed into another Diesel function, `insert_into`. As I mentioned earlier in the post, `InsertablePerson` was defined specifically for new records, therefore the values from `person` are extracted thanks to the `from_person` helper function. Remember that no ID is included on this struct. Like before, `get_result` is called again to execute the statement.
 
 ## Connection pooling - A bit of everything
 
@@ -257,7 +262,7 @@ Now, I'm not going to lie. This is a straight up copy from the [Rocket documenta
 
 ## Rocket
 
-All of the backend magic has been implemented at this point. All we now need to do is create the REST API and hook it up to the backend that we've created. In Rocket this consists of routes that map incoming requests to handler functions which will then deal with the requests. So we have got two clear things still to do, define the routes and create the handler functions.
+All of the database magic has been implemented at this point. All we now need to do is create the REST API and hook it up to the back-end that we've created. In Rocket this consists of routes that map incoming requests to handler functions which will then deal with the requests. So we have got two clear things still to do, define the routes and create the handler functions.
 
 ### Handlers
 
@@ -345,13 +350,17 @@ fn error_status(error: Error) -> Failure {
     })
 }
 ```
-This function returns all the person records stored in the database. It accepts a `GET` request thanks to the `#[get("/")]` attribute on the function. The path it accepts requests from is `localhost:8000/people` as denoted by the `"/"`. So if we wanted to use cURL to send a request to this function we need to execute:
+This function returns all the person records stored in the database. It accepts a `GET` request thanks to the `#[get("/")]` attribute on the function. The path it accepts requests from is `localhost:8000/people` as denoted by the `"/"`.
+
+To use cURL to send a request to this function we need to execute:
 ```
 curl localhost:8000/people
 ```
-This will then return a JSON list of people as specified by the return type of `Result<Json<Vec<Person>>, Failure>`. To do this, the records are retrieved from database and mapped into their JSON representation. Thanks to the return type of `QueryResult<Vec<Person>> from the `all` function, if anything goes wrong at the database level we can then map this to a HTTP status code to represent the error properly. This is why the return type is a `Result`. It provides us with an option to either return the records when nothing goes wrong but if anything does, it can return a error status code instead.
+This will then return a JSON list of people as specified by the return type of `Result&lt;Json&lt;Vec&lt;Person&gt;&gt;, Failure&gt;`. To do this, records are retrieved from database and mapped into their JSON representation. Thanks to the return type of `QueryResult&lt;Vec&lt;Person&gt;&gt;` from the `all` function, if anything goes wrong at the database level we can then map this to a HTTP status code to represent the error properly. This is why the return type is a `Result`. It provides us with an option to either return the records when nothing goes wrong but if anything does, it can return a error status code instead.
 
-The `error_status` function isn't particularly interesting and doesn't help for this specific example. It simply converts an `Error` contained within `QueryResult` on failures into a status code. I was only particularly interested in these two scenarios, hence why it either returns `NotFound` or `InternalServerError` for anything else since I'm lazy (plus most of the other errors would honestly be classed as internal server errors).
+Serde finally pops up here, although it does so behind the scenes. Without the `#[derive(Serialize)]` attribute we added onto the `Person` struct earlier we would not be able to return `Json&lt;Vec&lt;Person&gt;&gt;` from this function; the same applies for `Json&lt;Person&gt;`.
+
+The `error_status` function isn't particularly interesting and doesn't help for this specific example. It simply converts an `Error` contained within `QueryResult` into a status code. I was only particularly interested in these two scenarios, hence why it either returns `NotFound` or `InternalServerError` for anything else since I'm lazy (plus most of the other errors would honestly be classed as internal server errors).
 
 The last point to touch on before we look at another handler function, the appearance of `DbConn`. The code we wrote earlier for connection pooling allows this. At this point all we need to do is include it in the function parameters and it will retrieve a connection for us.
 
@@ -364,11 +373,13 @@ fn put(id: i32, person: Json<Person>, connection: DbConn) -> Result<Json<Person>
         .map_err(|error| error_status(error))
 }
 ```
-The first difference between this function and the previous `ALL` example (ignoring the type of request) is the `id` and `person` being passed in. The `"&lt;/id&gt;"` represents the path variable `id` and `data = "&lt;person"&gt;` maps to `person` in the functions arguments. The `format` property specifies the content of the body of the request, in other words, the `data` property should contain JSON (indicated by `application/json`). We can see that it does indeed do just that since `person` is of type `Json<Person>`.
+The first difference between this function and the previous `ALL` example (ignoring request type) is the `id` and `person` being passed in. The `"&lt;/id&gt;"` represents the path variable `id` and `data = "&lt;person"&gt;` represents that request body that maps to `person` in the functions arguments. The `format` property specifies the content of the request body, in other words, the `data` property should contain JSON (indicated by `application/json`). We can see that it does indeed do just that since `person` is of type `Json&lt;Person&gt;`.
+
+Serde again shows up here. It is needed to retrieve the `Json&lt;Person&gt;` from the request body.
 
 To retrieve the contents of `person` we must call `into_inner()`, revealing the `Person` that was waiting to break out all along... `update` is called and the result or error is mapped and returned in the `Result` enum. Due to the implementation of `error_status`, an error will be thrown if an existing record does not exist with the passed in ID. Whether this is how it should work seems to vary from person to person (according to my googling anyway). If we instead wanted to insert the record if it did not already exist, we would need to handle the `Error::NotFound` and instead call similar code to that in the `POST` function.
 
-The last function we'll look at closely is POST:
+Well we just mentioned it, so we need to look at it now. Below is the `POST` function:
 ```rust
 #[post("/", format = "application/json", data = "<person>")]
 fn post(person: Json<Person>, connection: DbConn) -> Result<status::Created<Json<Person>>, Failure> {
@@ -391,9 +402,9 @@ fn port() -> String {
     env::var("ROCKET_PORT").expect("ROCKET_PORT must be set")
 }
 ```
-This contains similar components to the `PUT` function we just looked at. The main difference is the return type. The status code that should be returned from a successful `POST` request is `201 Created` rather than `200 Ok` which was used by the previous functions that we looked at. To return a different status code, the `Result` should contain `status::Created` instead of a JSON person. This change is what makes it return a `201` status code.  
+This contains similar components to the `PUT` function we just looked at. The main difference is the return type. The status code that should be returned from a successful `POST` request is `201 Created` rather than `200 Ok` which was used by the previous functions that we looked at. To return a different status code, the `Result` should contain `status::Created` instead of `Json&lt;Person&gt;` directly. This change is what makes it return a `201` status code.  
 
-To create the `status::Created` struct, the created record along with the path to retrieve it (via a `GET` request). Passing in the path as a absolute string isn't ideal so I have retrieved the host and port number from the environment variables. This might not be the best way to get this to work... But I spent ages trying to figure out how to get them out of Rocket and gave up in the end.
+To create the `status::Created` struct, the created record along with the path to retrieve it (via a `GET` request) must be passed into it's constructor. Passing in the path as an absolute string isn't ideal so I have retrieved the host and port number from the environment variables. This might not be the best way to get this to work... But I spent ages trying to figure out how to get them out of Rocket and gave up in the end.
 
 We should probably also look at Responders in Rocket and how they enrich the returned responses, but this post is already so long so I will instead refer you to the [Rocket documentation](https://rocket.rs/guide/responses/#rocket-responders) on the subject.
 
@@ -401,7 +412,7 @@ We should probably also look at Responders in Rocket and how they enrich the ret
 
 We are nearly at the end now... Don't give up yet!
 
-The handlers are setup to accept requests to the server but before we can use them the we need to set the base path to the different functions. Since they all of the functions in this post are related to people it will be mapped to `/people`. See the code below on how to do this:
+The handlers are setup to accept requests to the server but before we can use them the we need to set the routes to the different functions. Since all of the functions in this post are related to people it will be mapped to `/people`. See the code below on how to do this:
 ```rust
 use people;
 use rocket;
@@ -423,20 +434,22 @@ pub fn create_routes() {
 
 ### Configuration
 
-Earlier in this post I made use of environment variables to retrieve the host and port of the running server. So let's have a brief look at configuration required to change the host and port in Rocket. There are two ways to do this from within configuration files. Either specify values within a `.env` file or create a `Rocket.toml` file. 
+Earlier in this post I made use of environment variables to retrieve the host and port of the running server. So let's have a brief look at the configuration required to change the host and port in Rocket. There are two ways to do this from within configuration files. Either specify values within a `.env` file or create a `Rocket.toml` file. 
 
-When using a `.env` file the values must follow the format of `ROCKET_{PARAM}` where `PARAM` is the property you are trying to set. `{ADDRESS}` represents the host and `{PORT}` is obviously the port number. Taking this information, below is the `.env` file used in this post (removing unrelated configuration):
+When using a `.env` file, the values must follow the format of `ROCKET_{PARAM}` where `PARAM` is the property you are trying to set. `{ADDRESS}` represents the host and `{PORT}` is obviously the port number. Taking this information, below is the `.env` file used in this post (removing unrelated configuration):
 ```.env
 ROCKET_ADDRESS=localhost
-ROCKET_PORT=8001
+ROCKET_PORT=8000
 ```
 If instead you wanted to use a `Rocket.toml` file, it would look like the below.
 ```toml
 [development]
 address = "localhost"
-port = 8001
+port = 8000
 ```
 In this situation, these values are only applicable for development, which is handy since thats all I'm doing.
+
+If you choose to include neither of these Rocket will instead fall back to it's default configuration. So don't worry about needing to do loads of configuration when playing around with Rocket; for local development the defaults are most likely good enough.
 
 For more (and better) explanations of Rocket Configuration, I again recommend looking at their [documentation](https://rocket.rs/guide/configuration/#configuration).
 
@@ -467,7 +480,7 @@ fn main() {
     people::router::create_routes();
 }
 ```
-All `main` does is load in the environment variables and starts Rocket by calling `create_routes`.
+All `main` does is load in the environment variables and starts Rocket by calling `create_routes`. The rest of this file just pulls in a load of crates so they don't need to be scattered throughout the rest of the code.
 
 Now you can rest. That was a pretty long post. I'd write a conclusion but honestly, I'm tired and don't want to write anymore. So for a short summary, in this post we have created a simple REST API using Rocket to run an application server that responds to requests and used Diesel to connect to a database to manage the state of the application.
 
