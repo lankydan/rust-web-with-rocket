@@ -4,32 +4,32 @@ use std::env;
 use people;
 use people::Person;
 use rocket::http::Status;
-use rocket::response::{Failure, status};
-use rocket_contrib::Json;
+use rocket::response::status;
+use rocket_contrib::json::Json;
 
 #[get("/")]
-fn all(connection: DbConn) -> Result<Json<Vec<Person>>, Failure> {
+pub fn all(connection: DbConn) -> Result<Json<Vec<Person>>, Status> {
     people::repository::all(&connection)
         .map(|people| Json(people))
         .map_err(|error| error_status(error))
 }
 
-fn error_status(error: Error) -> Failure {
-    Failure(match error {
+fn error_status(error: Error) -> Status {
+    match error {
         Error::NotFound => Status::NotFound,
         _ => Status::InternalServerError
-    })
+    }
 }
 
 #[get("/<id>")]
-fn get(id: i32, connection: DbConn) -> Result<Json<Person>, Failure> {
+pub fn get(id: i32, connection: DbConn) -> Result<Json<Person>, Status> {
     people::repository::get(id, &connection)
         .map(|person| Json(person))
         .map_err(|error| error_status(error))
 }
 
 #[post("/", format = "application/json", data = "<person>")]
-fn post(person: Json<Person>, connection: DbConn) -> Result<status::Created<Json<Person>>, Failure> {
+pub fn post(person: Json<Person>, connection: DbConn) -> Result<status::Created<Json<Person>>, Status> {
     people::repository::insert(person.into_inner(), &connection)
         .map(|person| person_created(person))
         .map_err(|error| error_status(error))
@@ -50,17 +50,17 @@ fn port() -> String {
 }
 
 #[put("/<id>", format = "application/json", data = "<person>")]
-fn put(id: i32, person: Json<Person>, connection: DbConn) -> Result<Json<Person>, Failure> {
+pub fn put(id: i32, person: Json<Person>, connection: DbConn) -> Result<Json<Person>, Status> {
     people::repository::update(id, person.into_inner(), &connection)
         .map(|person| Json(person))
         .map_err(|error| error_status(error))
 }
 
 #[delete("/<id>")]
-fn delete(id: i32, connection: DbConn) -> Result<status::NoContent, Failure> {
+pub fn delete(id: i32, connection: DbConn) -> Result<Status, Status> {
     match people::repository::get(id, &connection) {
         Ok(_) => people::repository::delete(id, &connection)
-            .map(|_| status::NoContent)
+            .map(|_| Status::NoContent)
             .map_err(|error| error_status(error)),
         Err(error) => Err(error_status(error))
     }
