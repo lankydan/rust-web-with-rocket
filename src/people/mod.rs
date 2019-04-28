@@ -1,4 +1,5 @@
- use super::schema::people;
+#![allow(proc_macro_derive_resolution_fallback)]
+use super::schema::people;
 
 pub mod handler;
 pub mod router;
